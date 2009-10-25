@@ -1,0 +1,461 @@
+package Web::App;
+# $Id: App.pm,v 1.36 2009/03/23 00:44:49 apla Exp $
+
+our $VERSION = 1.10;
+
+use Class::Easy;
+use Data::Dumper;
+
+use IO::Easy;
+
+use Web::App::Config;
+
+use Web::App::Request;
+use Web::App::Response;
+
+use Web::App::Session;
+
+has 'root';
+has 'config';
+has 'int';
+has 'session';
+has 'request';
+has 'response';
+
+has 'core', is => 'rw';
+
+our $app = {};
+
+1;
+
+sub new {
+	my $class   = shift;
+	my $params  = {@_};
+	
+	bless $app, $class;
+	
+	debug "process initialization";
+	
+	my $t = timer ('core init');
+	
+	my $config_file;
+	
+	if ($params->{core}) {
+		my $core = $params->{core};
+		die "can't use package $core"
+			unless try_to_use ($core);
+		
+		# modules always in lib for Web::App
+		$app->{root} = $core->root;
+		$app->{core} = $core;
+		# !!! dirty xml hack
+		$config_file = $core->root->append ('etc', $core->id . '-web-app.xml')
+			unless -f $config_file;
+	} else {
+		$app->{root} = IO::Easy->new ($params->{'root'});
+		$config_file = $params->{'config'} || 'etc/config.xml';
+	}
+	
+	$t->lap ('config loading');
+	
+	# Анализирует входящий запрос, производит общую абстрактную
+	# обработку запроса
+  
+	debug "creating Web::App object in $app->{root}";
+	
+	debug 'loading configuration';
+	
+	my $config = Web::App::Config->get ($app, $config_file);
+	
+	$app->{config} = $config;
+	
+	$t->lap ('modules loading');
+	
+	$config->init_modules;
+	
+	$t->end;
+	
+	return $app;
+}
+
+# accessors here
+
+sub home {
+	shift->{root};
+}
+
+sub app {
+	$app;
+}
+
+sub receive_request {
+	my $self = shift;
+	
+	# initialization
+	my $request  = $self->{request}  = Web::App::Request->new ($app);
+	my $response = $self->{response} = Web::App::Response->new;
+	
+	$request->handle ($self);
+	
+	$response->{data}->{request} = $request; # for presentation
+	
+	my $screen = $self->request->screen;
+	
+	# TODO CHANGE DESCRIPTION
+	# we don't init session because some session
+	# internals must be preloaded
+	
+	my $session = Web::App::Session->detect;
+	
+}
+
+sub handler {
+	my $self = shift;
+	
+	my $r = Web::App::Request->new ($app);
+	
+	return $r;
+}
+
+sub var {
+	my $self = shift;
+	return $self->response->data;
+}
+
+sub params_expand {
+	my $self   = shift;
+	my $params = shift;
+	
+	my $request = $self->request;
+	my $session = $self->session;
+	
+	my $dirs = {
+		'data-dir'   => $self->root . '/var/db/sharedwork',
+		'root'       => $self->root,
+		'path_info'  => $request->path_info,
+		'session_id' => $session->id,
+		'screen_id'  => $request->screen->id,
+		'dir_info'   => $request->dir_info,
+		'file_name'  => $request->file_name,
+		'file_extension' => $request->file_extension,
+		'base_uri' => $request->base_uri,
+	};
+	
+	if (defined ref $params and ref $params eq 'HASH') {
+		foreach my $key (keys %$params) {
+			#supports perl and xslt notations: ${aaa} and {$aaa}
+			$params->{$key} =~ s/(?:\$\{|\{\$)([\w\-_0-9]+)\}/$dirs->{$1}/g;
+			# warn ("key is: $key, param is: $1");
+		}
+	} else {
+		$params =~ s/(?:\$\{|\{\$)([\w\-_0-9]+)\}/$dirs->{$1}/g;
+		return $params;
+	}
+	
+}
+
+
+sub process_request {
+	my $self = shift;
+
+	my $request  = $self->request;
+	my $response = $self->response;
+
+	my $screen = $self->request->screen;
+	
+	# adding processors from config for current screen into request
+	my $processors = [];
+	if ($request->data_available) {
+		$processors = $screen->process_calls;
+	} else {
+		$processors = $screen->init_calls;
+	}
+	
+	push @{$request->processors}, @$processors
+		if defined $processors;
+	
+	$request->presentation ($screen->{'presentation'});
+	
+	while (my $processor = $request->next_processor) {
+		
+		last unless defined $processor;
+		
+		my $processor_params = $processor;
+		my $processor_call = $processor_params->{sub};
+
+		debug "launch '$processor_call'";
+		
+		my ($pack, $method) = split '->', $processor_call;
+		if ($pack =~ /^\$([^:]+)$/) {
+			$pack = $app->$1;
+		}
+		
+		eval {
+			$pack->$method ($self, $processor_params);
+		};
+		
+		# eval "$processor_call (\$self, \$processor_params)";
+		critical "after '$processor_call' launch: $@"
+			if $@;
+	}
+	
+	debug "processors finished";
+	
+	my $location = $self->{'redirect-to'};
+	
+	# !!! need to be replaced for correct headers output.
+
+	debug Dumper $response->data
+		if $Class::Easy::DEBUGIMMEDIATELY;
+	
+	if ($location) {
+		if ($Class::Easy::DEBUGIMMEDIATELY) {
+			# print "Location: <a href='$location'>$location</a>\n\n";
+			debug "actual headers are below";
+		} else {
+			$self->response->headers->header ('Location' => $location);
+		}
+	}
+
+
+}
+
+sub handle_request_new ($$) {
+	my $class = shift;
+	my $r     = shift;
+	
+	my $app = $class->app;
+
+	my $request = Web::App::Request->new;
+	
+	$request->process;
+
+}
+
+sub handle_request ($$) {
+	my $class = shift;
+	my $r     = shift;
+	
+	my $self = $class->app;
+	
+	delete $self->{'redirect-to'};
+	
+	my $t = timer ('request retrieval');
+	
+	$self->receive_request;
+	
+	$t->lap ('accessors');
+	
+	my $request = $self->request;
+	my $screen  = $request->screen;
+	
+	my $session = $self->session;
+	
+	$t->lap ('authentication');
+	
+	if ($screen->authenticated ($session)) {
+		
+		$t->lap ('processors work');
+		
+		$self->process_request;
+		
+	} else {
+
+		debug "screen not authenticated";
+		$self->clear_process_queue;
+		$self->set_presentation_screen ('login');
+
+	}
+	
+	$t->lap ('presentation');
+	
+	my $content;
+	
+	$self->prepare_presenter;
+	
+	$self->send_headers;
+	
+	my $status;
+	
+	if ($request->redirected) {
+		
+		$status = $request->redirect_status;
+	
+	} else {
+		$content = $self->run_presenter;
+		
+		$request->send_content ($content);
+		
+		$status = $request->done_status;
+	}
+
+	$t->end;
+	debug "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< request finished";
+	$t->total;
+	
+	return $status;
+}
+
+sub prepare_presenter {
+	my $app = shift;
+	
+	# maybe processor changed presentation
+	my $presentation = $app->request->presentation;
+	
+	my $presenter = $app->config->presenters->{$presentation->{'type'}};
+	
+	$app->response->presenter ($presenter);
+	
+	$presenter->headers;
+
+}
+
+sub debug_log { # TODO: more optimal way without copying
+	my $self  = shift;
+	
+	my $result = $Web::App::LOG;
+	
+	$Web::App::LOG = '';
+	
+	my $presentation = $self->request->presentation;
+	my $presentation_type = $presentation->{'type'};
+	
+	# we must prettify log for html
+	
+	my $presenters = $self->config->presenters;
+	my $presenter;
+	
+	if ($presentation_type) {
+		$presenter  = $presenters->{$presentation_type};
+	} else {
+		if ($self->response->headers->content_type =~ /text\/html/) {
+			$presenter = $presenters->{'xslt'};
+			warn "we hacked into xslt";
+		}
+	}
+
+	if ($presenter and $presenter->can ('wrap_log')) {
+		return $presenter->wrap_log ($result);
+	} else {
+		return $result;
+	}
+
+}
+
+=pod 
+
+
+
+=cut
+
+sub send_headers {
+	my $app = shift;
+	
+	my $request = $app->request;
+	
+	return if $request->headers_sent;
+	
+	my $headers = $app->response->headers;
+	
+	$request->send_headers ($headers);
+	debug "headers are: ", $headers->as_string;
+	
+	$request->headers_sent (1);
+}
+
+sub set_presentation {
+	my $self = shift;
+	my $presentation = shift;
+	
+	$self->request->presentation ($presentation);
+}
+
+sub set_presentation_screen {
+	my $self = shift;
+	my $screen_name = shift;
+	
+	my $screen = $self->config->screen ($screen_name)->{'?'};
+	
+	$self->request->presentation ($screen->{'presentation'});
+	
+	$self->request->screen ($screen);
+	
+}
+
+sub clear_process_queue {
+	my $self = shift;
+	
+	debug 'requested for clearing processor queue, processed';
+	
+	$self->request->processors ([]);
+}
+
+sub redirect_to_screen {
+	my $self   = shift;
+	my $screen = shift;
+	
+	my $request = $self->request;
+	
+	return unless $request->type eq 'CGI';
+	
+	# TODO CRITICAL: fix for proto (https) and port
+	
+	my $base_uri = $request->base_uri;
+	my $host     = $request->host;
+	if ($self->core and exists $self->core->config->{'hostname'}) {
+		$host = $self->core->config->{'hostname'};
+	}
+
+	if ( $request->{'session-id'} ) {
+		my $session_id = $request->{'session-id'};
+		$self->{'redirect-to'} = "http://$host$base_uri/$session_id\@$screen";
+	
+	} else {
+		$self->{'redirect-to'} = "http://$host$base_uri/$screen";
+	}
+}
+
+sub redirect {
+	my $self = shift;
+	my $url  = shift;
+	
+	my $request = $self->request;
+	
+	return unless $request->type eq 'CGI';
+	
+	$self->{'redirect-to'} = $url;
+}
+
+sub redirected {
+	my $self = shift;
+	
+	return 1 if exists $self->{'redirect-to'} and $self->{'redirect-to'} ne '';
+	return 0; 
+}
+
+sub run_presenter {
+	my $self	  = shift;
+	
+	my $presentation = $self->request->presentation;
+
+	debug "presenter: " . $presentation->{'type'}
+		. (defined $presentation->{'file'} ? " in " . $presentation->{'file'} : '');
+
+	my $presenter  = $self->response->presenter;
+	
+	critical "maybe you want to register presenter, because i nothing knows about '$presentation->{type}'"
+		unless defined $presenter;
+	
+	my $data = $self->response->data;
+	
+	my $content;
+	eval {
+		$content =  $presenter->process ($self, $data, %$presentation);
+	};
+	
+	debug $@ if $@;
+	
+	return $content;
+}
+
+1;
