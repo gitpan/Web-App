@@ -24,13 +24,15 @@ Web::App
 =cut
 
 sub path_to_val {
-    my ($data, $path)  = @_;
-    
-    my @path  = split '/', $path;
-    foreach (@path) {
-        $data = $data -> {$_};
-    }
-    return $data;
+	my ($data, $path)  = @_;
+	
+	my @path  = split '/', $path;
+	foreach (@path) {
+		$data = $data->[$_], next
+			if ref $data eq 'ARRAY';
+		$data = $data->{$_};
+	}
+	return $data;
 }
 
 sub assign_path {
@@ -471,8 +473,8 @@ sub screen_from_request {
 			
 			my @children_screen = grep {!/[\/\#\?]/} keys %$screen;
 
-			#use Data::Dumper;
-			#debug Dumper \@children_screen;
+			# use Data::Dumper;
+			# debug Dumper \@children_screen;
 			
 			foreach my $match (@children_screen) {
 				my $is_regexp = $screen->{$match}->{'?'}->{regexp};

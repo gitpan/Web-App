@@ -149,6 +149,7 @@ User  {$user}
 Group {$group}
 
 LoadModule perl_module {$apxs_libexec}/mod_perl.so
+LoadModule mime_module {$apxs_libexec}/mod_mime.so
 
 PerlConfigRequire {$root}bin/mod_perl_startup
 
@@ -313,7 +314,7 @@ if ($ARGV[0] eq 'stop') {
 }
 
 ########################################
-IO::Easy share/presentation/{project}/index.xsl
+IO::Easy share/presentation/{$project}/index.xsl
 ########################################
 <?xml version="1.0" encoding="UTF-8"?>
 
@@ -332,7 +333,7 @@ IO::Easy share/presentation/{project}/index.xsl
 		<p>you have completed web-app installation and ready to start development.</p>
 		<p>documentation: <a href="#">here</a></p>
 		<p onclick="document.getElementById ('source').style.display = 'block';">click to view xml source</p>
-		<textarea id="source" rows="20" style="width: 100%; display: none;"><xsl:value-of select="/"/></textarea>
+		<textarea id="source" rows="20" style="width: 100%; display: none;"><xsl:copy-of select="/"/></textarea>
 	</body>
 </html>
 	</xsl:template>

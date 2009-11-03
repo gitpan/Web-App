@@ -1,7 +1,7 @@
 package Web::App;
 # $Id: App.pm,v 1.36 2009/03/23 00:44:49 apla Exp $
 
-our $VERSION = 1.10;
+our $VERSION = 1.12;
 
 use Class::Easy;
 use Data::Dumper;
@@ -122,7 +122,7 @@ sub var {
 	return $self->response->data;
 }
 
-sub params_expand {
+sub expand_params {
 	my $self   = shift;
 	my $params = shift;
 	
@@ -138,16 +138,45 @@ sub params_expand {
 		'dir_info'   => $request->dir_info,
 		'file_name'  => $request->file_name,
 		'file_extension' => $request->file_extension,
-		'base_uri' => $request->base_uri,
+		'base_uri'   => $request->base_uri,
+		'var'        => $self->var,
 	};
+	
+	my $counter = 1;
+	foreach my $match (@{$request->screen_matches}) {
+		$dirs->{$counter} = $match;
+		$counter++;
+	}
 	
 	if (defined ref $params and ref $params eq 'HASH') {
 		foreach my $key (keys %$params) {
-			#supports perl and xslt notations: ${aaa} and {$aaa}
-			$params->{$key} =~ s/(?:\$\{|\{\$)([\w\-_0-9]+)\}/$dirs->{$1}/g;
+			#supports xslt notation: {$aaa}
+			# 3-letters
+			my $val = $params->{$key};
+			my $pos = index ($val, '{$');
+			while ($pos > -1) {
+				my $end = index ($val, '}', $pos);
+				my $str = substr ($val, $pos + 2, $end - $pos - 2);
+				
+				# warn "found replacement: key => $key, requires => \$$str\n";
+				
+				my $fix;
+				if (index ($str, '/') > -1) { # treat as path
+					# warn join ', ', keys %{$self->var};
+					$fix = Web::App::Config::path_to_val ($dirs, $str);
+				} else { # scalar
+					$fix = $dirs->{$str};
+				}
+				
+				# warn "value for replace is: $fix\n";
+				
+				substr ($val, $pos, $end - $pos + 1, $fix);
+				$pos = index ($val, '{$', $end);
+			}
+			$params->{$key} = $val;
 			# warn ("key is: $key, param is: $1");
 		}
-	} else {
+	} else { # what this?
 		$params =~ s/(?:\$\{|\{\$)([\w\-_0-9]+)\}/$dirs->{$1}/g;
 		return $params;
 	}
@@ -181,6 +210,11 @@ sub process_request {
 		last unless defined $processor;
 		
 		my $processor_params = $processor;
+		
+		my $result_place = delete $processor_params->{place};
+		
+		$self->expand_params ($processor_params);
+		
 		my $processor_call = $processor_params->{sub};
 
 		debug "launch '$processor_call'";
@@ -190,9 +224,20 @@ sub process_request {
 			$pack = $app->$1;
 		}
 		
-		eval {
+		my $result = eval {
 			$pack->$method ($self, $processor_params);
 		};
+		
+		if (defined $result and $result) {
+			
+			die "you must supply place for results"
+				unless $result_place;
+			
+			die "you can't override $result_place"
+				if exists $app->var->{$result_place};
+			
+			$app->var->{$result_place} = $result;
+		}
 		
 		# eval "$processor_call (\$self, \$processor_params)";
 		critical "after '$processor_call' launch: $@"
