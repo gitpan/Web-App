@@ -37,6 +37,7 @@ sub xhr_fix {
 	
 	$app->set_presentation ({type => 'json'});
 	
+	return;
 }
 
 sub new {

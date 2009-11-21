@@ -155,6 +155,8 @@ sub create {
 		if $session[0];
 	
 	$app->redirect_to_screen ($request->params->param ('referer') || '');
+	
+	return;
 }
 
 sub finish {

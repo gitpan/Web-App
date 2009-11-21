@@ -3,6 +3,8 @@ lib/Web/App/Config/Screen.pm
 lib/Web/App/Config.pm
 lib/Web/App/Helper.pm
 lib/Web/App/Lib/IO.pm
+lib/Web/App/Lib/EntityRecord.pm
+lib/Web/App/Lib/EntityCollection.pm
 lib/Web/App/Presenter/JSON.pm
 lib/Web/App/Presenter/XMLDump.pm
 lib/Web/App/Presenter/XSLT.pm
@@ -20,3 +22,4 @@ Makefile.PL
 MANIFEST
 README
 META.yml			Module meta-data (added by MakeMaker)
+t/000-dummy.t

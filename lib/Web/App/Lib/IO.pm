@@ -16,7 +16,6 @@ sub nodes {
 	my $params = shift;
 	
 	my $place  = $params->{place} || 'htdocs';
-	my $entity = $params->{entity} || 'dir';
 	
 	my $node = $app->request->params->param ('node') || '';
 	
@@ -47,8 +46,7 @@ sub nodes {
 		}
 	}
 	
-	$app->var->{$entity} = $list;
-	
+	return $list;
 }
 
 sub file_contents {
@@ -57,7 +55,6 @@ sub file_contents {
 	my $params = shift;
 	
 	my $place = $params->{place} || 'htdocs';
-	my $entity = $params->{entity} || 'doc';
 	
 	my $node = $app->request->path_info;
 	
@@ -66,7 +63,7 @@ sub file_contents {
 	
 	my $contents = $app->root->append ($place, $node)->as_file->contents;
 	
-	$app->var->{$entity} = {
+	return {
 		contents => $contents,
 		path => $node
 	};
@@ -101,6 +98,8 @@ sub store_file {
 	$file->store ($cont);
 	
 	$app->var->{result} = 'ok';
+	
+	return;
 }
 
 
@@ -110,7 +109,6 @@ sub document_files {
 	my $params = shift;
 	
 	my $place = $params->{place} || 'htdocs';
-	my $entity = $params->{entity} || 'docs';
 	
 	my $node = $app->request->params->param ('node') || '';
 	
@@ -137,7 +135,7 @@ sub document_files {
 		
 	}
 	
-	$app->var->{$entity} = $list;
+	return $list;
 }
 
 sub image_files {
@@ -146,7 +144,6 @@ sub image_files {
 	my $params = shift;
 	
 	my $place = $params->{place} || 'htdocs';
-	my $entity = $params->{entity} || 'images';
 	
 	my $node = $app->request->params->param ('node') || '';
 	
@@ -193,18 +190,21 @@ sub image_files {
 			);
 		}
 		
+		my $uri_dir = '/' . ($node eq '' ? '' : $node . '/');
+		
 		push @$list, {
 			name   => $name,
 			size   => $dir_item->size,
 			mtime  => $dir_item->mtime,
 			width  => $w,
 			height => $h,
-			url  => '/' . ($node eq '' ? '' : $node . '/') . ($small_dims ? '' : '--') . $name,
+			thumb_url => $uri_dir . ($small_dims ? '' : '--') . $name,
+			image_url => $uri_dir . $name
 		};
 		
 	}
 	
-	$app->var->{$entity} = $list;
+	return $list;
 	
 }
 
@@ -233,6 +233,37 @@ sub make_dir {
 		$app->var->{$entity} = {result => 'ok'};
 	}
 	
+	return;
+	
 }
+
+
+sub upload {
+	my $class  = shift;
+	my $app    = shift;
+	my $params = shift;
+	
+	my $dir = $params->{dir} || 'htdocs';
+	
+	my $req = $app->request;
+
+	my $location = $req->param ('location');
+	
+	return # bwahaha
+		if $location =~ /\.\./;
+	
+	my $file_contents = $req->param ('file');
+	my $file_name = $req->params->param_filename ('file');
+
+	my $file = $app->root->append ($dir, $location, $file_name)->as_file;
+
+	$file->store ($file_contents);
+
+	$app->var->{success} = 'true';
+
+	return;
+	
+}
+
 
 1;

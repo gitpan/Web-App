@@ -1,7 +1,7 @@
 package Web::App;
 # $Id: App.pm,v 1.36 2009/03/23 00:44:49 apla Exp $
 
-our $VERSION = 1.12;
+our $VERSION = '1.14';
 
 use Class::Easy;
 use Data::Dumper;
@@ -22,7 +22,7 @@ has 'session';
 has 'request';
 has 'response';
 
-has 'core', is => 'rw';
+has 'project', is => 'rw';
 
 our $app = {};
 
@@ -36,20 +36,20 @@ sub new {
 	
 	debug "process initialization";
 	
-	my $t = timer ('core init');
+	my $t = timer ('project init');
 	
 	my $config_file;
 	
-	if ($params->{core}) {
-		my $core = $params->{core};
-		die "can't use package $core"
-			unless try_to_use ($core);
+	if ($params->{project}) {
+		my $project = $params->{project};
+		die "can't use package $project"
+			unless try_to_use ($project);
 		
 		# modules always in lib for Web::App
-		$app->{root} = $core->root;
-		$app->{core} = $core;
+		$app->{root} = $project->root;
+		$app->{project} = $project;
 		# !!! dirty xml hack
-		$config_file = $core->root->append ('etc', $core->id . '-web-app.xml')
+		$config_file = $project->root->append ('etc', $project->id . '-web-app.xml')
 			unless -f $config_file;
 	} else {
 		$app->{root} = IO::Easy->new ($params->{'root'});
@@ -170,7 +170,11 @@ sub expand_params {
 				
 				# warn "value for replace is: $fix\n";
 				
-				substr ($val, $pos, $end - $pos + 1, $fix);
+				if ($pos == 0 and $end == (length ($val) - 1)) {
+					$val = $fix;
+				} else {
+					substr ($val, $pos, $end - $pos + 1, $fix);
+				}
 				$pos = index ($val, '{$', $end);
 			}
 			$params->{$key} = $val;
@@ -209,7 +213,7 @@ sub process_request {
 		
 		last unless defined $processor;
 		
-		my $processor_params = $processor;
+		my $processor_params = {%$processor}; # copy
 		
 		my $result_place = delete $processor_params->{place};
 		
@@ -447,8 +451,8 @@ sub redirect_to_screen {
 	
 	my $base_uri = $request->base_uri;
 	my $host     = $request->host;
-	if ($self->core and exists $self->core->config->{'hostname'}) {
-		$host = $self->core->config->{'hostname'};
+	if ($self->project and exists $self->project->config->{'hostname'}) {
+		$host = $self->project->config->{'hostname'};
 	}
 
 	if ( $request->{'session-id'} ) {

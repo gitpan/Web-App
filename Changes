@@ -1,3 +1,14 @@
+2009-11-21	Ivan Baktsheev <dot.and.thing@gmail.com>
+
+	Release 1.14
+
+	more powerful screen scenarios
+	standard upload routine
+	standard entity and collection builders
+	
+	fixes
+
+
 2009-06-08	Ivan Baktsheev <dot.and.thing@gmail.com>
 
 	Release 1.12

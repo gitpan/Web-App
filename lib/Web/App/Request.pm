@@ -76,24 +76,26 @@ sub new {
 sub process {
 	my $self = shift;
 	
-	my $app = Web::App->instance;
+	my $app = Web::App::Core->instance;
 	
 	my $response = Web::App::Response->new;
 	
-	my $screen = Web::App::Screen->new ($self);
+	my $screen_class = $app->screen_class;
+	
+	my $screen = $screen_class->for_request ($self);
 	
 	unless (defined $screen) {
-		$screen = Web::App::Screen->for_code (404);
+		$screen = $screen_class->for_code (404);
 		unless (defined $screen) {
 			# we must have check for main screen during Screen init procedure
 			# if not, this error appears on most error screens
-			$screen = Web::App::Screen->main;
+			$screen = $screen_class->main_screen;
 		}
 	}
 	
 	if ($screen->auth) {
 		my $session = Web::App::Session->new ($self);
-		$screen = Web::App::Screen->for_code (403)
+		$screen = $screen_class->for_code (403)
 			unless $session->authorized ($screen);
 		
 		return $self->present_and_transmit;
@@ -114,7 +116,7 @@ sub process {
 	
 	if ($http_code >= 300) {
 		# sometimes error screens have additional processing
-		$screen = Web::App::Screen->for_code ($response->http_code);
+		$screen = $screen_class->for_code ($response->http_code);
 		
 		# if we have error even when processing error screen, god bless america
 		$self->$get_through ($screen->commands);
@@ -246,7 +248,9 @@ sub check_params {
 	
 	#warn Dumper ($fields), "\n"
 	#	if $error_count > 0;
-
+	
+	return;
+	
 } # check_form_values
 
 
@@ -355,7 +359,6 @@ sub CGI::Minimal::fix_params {
 	}
 	
 }
-
 
 sub handle {
 	my $self = shift;

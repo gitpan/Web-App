@@ -85,6 +85,9 @@ sub locate_stylesheet {
 	
 	my $index_path = $self->template_dir->append ($app->request->screen->id, 'index.xsl');
 	
+	$index_path = $self->template_dir->append ($app->request->screen->id . '.xsl')
+		unless -f $index_path;
+	
 	return $index_path
 		if exists $PARSED->{$index_path};
 	
@@ -104,12 +107,14 @@ sub parse_stylesheet {
 	my $self = shift;
 	my $file = shift;
 	
-	my $mtime = (stat $file)[9];
+	my $production = shift || 0;
 	
-	if (exists $PARSED->{$file}) { # and !$Class::Easy::DEBUG) {
-		# always return parsed stylesheet when in production
+	# always return parsed stylesheet when in production
+	if (exists $PARSED->{$file} and $production) {
 		return $PARSED->{$file}->{s};
 	}
+
+	my $mtime = (stat $file)[9];
 	
 	return $PARSED->{$file}->{s}
 		if exists $PARSED->{$file} and $PARSED->{$file}->{m} == $mtime; # and !$Class::Easy::DEBUG;
@@ -169,7 +174,9 @@ sub process {
 	
 	debug "using stylesheet $file to generate some content";
 	
-	my $stylesheet = $self->parse_stylesheet ($file);
+	my $production = $app->project->config->{production};
+	
+	my $stylesheet = $self->parse_stylesheet ($file, $production);
 	
 	$t->lap ('processing data transformation');
 	

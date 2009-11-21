@@ -240,7 +240,7 @@ $Class::Easy::DEBUG = 'immediately';
 warn "\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nstarting Web::App mod_perl";
 
 my $wa = Web::App->new (
-	core => $::pack
+	project => $::pack
 );
 
 Web::App::Request->preload ($wa);
