@@ -80,7 +80,7 @@ sub ::entangle {
 
 		my $deploy_file = $root->append ($deploy_file_name)->as_file;
 		
-		my $deploy_dir = $deploy_file->updir;
+		my $deploy_dir = $deploy_file->parent;
 		$deploy_dir->create;
 		
 		my $deploy_tmpl = $files->{$deploy_file_tmpl};
