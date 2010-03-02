@@ -12,9 +12,11 @@ sub ::entangle {
 	
 	$Class::Easy::DEBUG = 'immediately';
 
-	my ($pack, $libs) = Project::Easy::Helper::_script_wrapper (
+	Project::Easy::Helper::_script_wrapper (
 		IO::Easy::Dir->current->append ('bin', 'fake')
 	);
+	
+	my $pack = $::project;
 	
 	my $apxs_libexec;
 	my $apxs;
@@ -117,6 +119,8 @@ sub ::entangle {
 	);
 	$patch = $serializer->parse_string ($local_config_patch_json);
 	$pack->fixup_path->patch ($patch);
+	
+	$pack->root->dir_io ('htdocs')->create;
 	
 	debug "done";
 }
@@ -240,7 +244,7 @@ $Class::Easy::DEBUG = 'immediately';
 warn "\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nstarting Web::App mod_perl";
 
 my $wa = Web::App->new (
-	project => $::pack
+	project => $::project
 );
 
 Web::App::Request->preload ($wa);
@@ -261,13 +265,13 @@ use Project::Easy qw(script);
 use Project::Easy::Helper;
 
 # there initialization for core package
-my $instance = $::pack->instance;
+my $instance = $::project;
 
 my $distro = $instance->distro;
 
 print "project '".$instance->id."' using distribution: '$distro'\n";
 
-Project::Easy::Helper::check_state ();
+Project::Easy::Helper::status ();
 
 print "modules are ok\n";
 

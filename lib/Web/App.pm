@@ -1,7 +1,7 @@
 package Web::App;
 # $Id: App.pm,v 1.36 2009/03/23 00:44:49 apla Exp $
 
-our $VERSION = '1.15';
+our $VERSION = '1.16';
 
 use Class::Easy;
 use Data::Dumper;
@@ -126,8 +126,9 @@ sub expand_params {
 	my $self   = shift;
 	my $params = shift;
 	
-	my $request = $self->request;
 	my $session = $self->session;
+	my $request = $self->request;
+	my $form    = $request->params;
 	
 	my $dirs = {
 		'data-dir'   => $self->root . '/var/db/sharedwork',
@@ -140,6 +141,9 @@ sub expand_params {
 		'file_extension' => $request->file_extension,
 		'base_uri'   => $request->base_uri,
 		'var'        => $self->var,
+		'form'       => {map {
+			$_ => $form->{$_}->[0]
+		} grep {! /CGI\:\:Minimal/} keys %$form},
 	};
 	
 	my $counter = 1;
