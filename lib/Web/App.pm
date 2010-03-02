@@ -1,7 +1,7 @@
 package Web::App;
 # $Id: App.pm,v 1.36 2009/03/23 00:44:49 apla Exp $
 
-our $VERSION = '1.16';
+our $VERSION = '1.17';
 
 use Class::Easy;
 use Data::Dumper;
