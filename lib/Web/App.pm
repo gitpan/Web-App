@@ -1,7 +1,7 @@
 package Web::App;
 # $Id: App.pm,v 1.36 2009/03/23 00:44:49 apla Exp $
 
-our $VERSION = '1.17';
+our $VERSION = '1.18';
 
 use Class::Easy;
 use Data::Dumper;
@@ -273,18 +273,6 @@ sub process_request {
 
 }
 
-sub handle_request_new ($$) {
-	my $class = shift;
-	my $r     = shift;
-	
-	my $app = $class->app;
-
-	my $request = Web::App::Request->new;
-	
-	$request->process;
-
-}
-
 sub handle_request ($$) {
 	my $class = shift;
 	my $r     = shift;
@@ -323,30 +311,29 @@ sub handle_request ($$) {
 	$t->lap ('presentation');
 	
 	my $content;
-	
-	$self->prepare_presenter;
-	
+	my $status;
+
+	if ($request->can ('set_status')) {
+		if ($self->redirected) {
+			$status = $request->set_status (302);
+		} else {
+			$status = $request->set_status (200);
+		}
+	}
+
 	$self->send_headers;
 	
-	my $status;
-	
-	if ($request->redirected) {
-		
-		$status = $request->redirect_status;
-	
-	} else {
+	unless ($request->redirected) {
+		$self->prepare_presenter;
 		$content = $self->run_presenter;
-		
 		$request->send_content ($content);
-		
-		$status = $request->done_status;
 	}
 
 	$t->end;
 	debug "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< request finished";
 	$t->total;
 	
-	return $status;
+	$request->done_status;
 }
 
 sub prepare_presenter {
@@ -394,12 +381,6 @@ sub debug_log { # TODO: more optimal way without copying
 	}
 
 }
-
-=pod 
-
-
-
-=cut
 
 sub send_headers {
 	my $app = shift;
@@ -472,9 +453,9 @@ sub redirect {
 	my $self = shift;
 	my $url  = shift;
 	
+	debug "requested redirect to uri: $url";
+
 	my $request = $self->request;
-	
-	return unless $request->type eq 'CGI';
 	
 	$self->{'redirect-to'} = $url;
 }
@@ -482,8 +463,9 @@ sub redirect {
 sub redirected {
 	my $self = shift;
 	
-	return 1 if exists $self->{'redirect-to'} and $self->{'redirect-to'} ne '';
-	return 0; 
+	my $status = 0;
+	$status = 1 if exists $self->{'redirect-to'} and $self->{'redirect-to'} ne '';
+	return $status; 
 }
 
 sub run_presenter {

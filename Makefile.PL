@@ -15,9 +15,10 @@ WriteMakefile(
 		},
 	},
 	PREREQ_PM => {
-		'Class::Easy'     => '0.06',
-		'Project::Easy'   => '0.14',
+		'Class::Easy'     => '0.09',
+		'Project::Easy'   => '0.18',
 		'Data::Dump::XML' => 1,
 		'XML::LibXSLT'    => '1.60',
+		'CGI::Minimal'    => '1.29',
 	}
 );

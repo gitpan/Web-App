@@ -162,11 +162,8 @@ sub present_and_transmit {
 sub detect_package {
 	my $pack = 'Web::App::Request';
 	# environment is our way to check for available request modes
-	if (exists $ENV{MOD_PERL}
-		and exists $ENV{MOD_PERL_API_VERSION}
-		and $ENV{MOD_PERL_API_VERSION} == 2
-	) {
-		$pack = 'Web::App::Request::ModPerl2';
+	if (exists $ENV{MOD_PERL}) {
+		$pack = 'Web::App::Request::ModPerl';
 	} elsif (exists $ENV{QUERY_STRING}) {
 		$pack = 'Web::App::Request::CGI';
 	} else {
