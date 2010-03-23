@@ -1,7 +1,7 @@
 package Web::App;
 # $Id: App.pm,v 1.36 2009/03/23 00:44:49 apla Exp $
 
-our $VERSION = '1.18';
+our $VERSION = '1.19';
 
 use Class::Easy;
 use Data::Dumper;
@@ -313,19 +313,23 @@ sub handle_request ($$) {
 	my $content;
 	my $status;
 
-	if ($request->can ('set_status')) {
-		if ($self->redirected) {
-			$status = $request->set_status (302);
-		} else {
-			$status = $request->set_status (200);
-		}
-	}
+	my $can_set_status = $request->can ('set_status');
 
-	$self->send_headers;
-	
-	unless ($request->redirected) {
+	if ($self->redirected) {
+		$request->set_status (302)
+			if $can_set_status;
+
+		$self->send_headers;
+
+	} else {
+		$request->set_status (200)
+			if $can_set_status;
+
 		$self->prepare_presenter;
 		$content = $self->run_presenter;
+		
+		$self->send_headers;
+	
 		$request->send_content ($content);
 	}
 

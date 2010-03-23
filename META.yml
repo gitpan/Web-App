@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Web-App
-version:            1.18
+version:            1.19
 abstract:           ~
 author:
     - Ivan Baktsheev <dot.and.thing@gmail.com>

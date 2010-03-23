@@ -11,7 +11,7 @@ use Data::Dump::XML;
 sub headers {
 	my $app = Web::App->app;
 	my $headers = $app->response->headers;
-	$headers->header ('Content-Type'  => 'text/xml; charset=utf-8');
+	$headers->header ('Content-Type'  => 'text/xml');
 	$headers->header ('Cache-Control' => 'no-store');
 }
 
