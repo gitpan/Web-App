@@ -169,7 +169,7 @@ sub get {
 		$self->parse_file ($app);
 		
 		nstore ($self->{'internals'}, $bin_config_file)
-			or log_error ("cannot write binary config to '$bin_config_file'");
+			or debug ("cannot write binary config to '$bin_config_file'");
 		
 	}
 		

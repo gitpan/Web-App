@@ -56,7 +56,7 @@ sub _init {
 		
 		return 1 if $file->type eq 'dir';
 		
-		return unless $file->extension eq 'xsl';
+		return if ! $file->extension or $file->extension !~ /xslt?/;
 		
 		$self->parse_stylesheet ($file);
 	});
