@@ -1,7 +1,7 @@
 package Web::App::Request;
 # $Id: Request.pm,v 1.13 2009/03/29 10:01:05 apla Exp $
 
-use Class::Easy;
+use Class::Easy::Base;
 
 use Encode qw/encode decode/;
 

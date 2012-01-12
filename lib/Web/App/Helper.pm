@@ -25,6 +25,7 @@ sub ::entangle {
 		'ap2xs',
 		'apxs',
 		'apxs2',
+		'/usr/sbin/apxs', # Old Fedora verions
 		'/usr/sbin/apxs2' # Opensuse "alias" [sic]
 	)) {
 		my $apxs_test = `$apxs_cmd -q LIBEXECDIR 2>/dev/null`;
@@ -147,17 +148,20 @@ ServerName 127.0.0.1
 ServerAdmin {$admin}
 Listen {$port}
 ServerRoot {$root}
-LockFile {$root}var/lock/accept
-DocumentRoot {$root}htdocs/
+LockFile {$root}/var/lock/accept
+DocumentRoot {$root}/htdocs/
 User  {$user}
 Group {$group}
+
+# Directive below is needed on old Fedora versions
+#TypesConfig /path/to/mime.types
 
 LoadModule perl_module {$apxs_libexec}/mod_perl.so
 LoadModule mime_module {$apxs_libexec}/mod_mime.so
 
-PerlConfigRequire {$root}bin/mod_perl_startup
+PerlConfigRequire {$root}/bin/mod_perl_startup
 
-Include {$root}etc/httpd.conf
+Include {$root}/etc/httpd.conf
 
 <IfModule prefork.c>
 	MaxClients	   15

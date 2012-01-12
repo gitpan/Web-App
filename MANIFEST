@@ -22,3 +22,4 @@ MANIFEST
 README
 META.yml			Module meta-data (added by MakeMaker)
 t/000-dummy.t
+META.json                                Module JSON meta-data (added by MakeMaker)

@@ -1,3 +1,9 @@
+2012-01-12	Ivan Baktsheev <dot.and.thing@gmail.com>
+
+	Release 1.21
+
+	compatibility fix for new Class::Easy
+
 2010-03-02	Ivan Baktsheev <dot.and.thing@gmail.com>
 
 	Release 1.17
